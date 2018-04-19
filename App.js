@@ -6,6 +6,9 @@
 
 import React, { Component } from 'react';
 import Root from "./src/main";
+import { Provider } from "react-redux";
+import { Router, Scene, Actions } from "react-native-router-flux";
+import Home from "./src/routes/Home/components/Home";
 import {
   Platform,
   StyleSheet,
@@ -24,9 +27,11 @@ const instructions = Platform.select({
 export default class App extends Component {
   render() {
     return (
-      <View style={styles.container}>
-        <Root {...this.props}/>
-      </View>
+        <Router>
+					<Scene key="root">
+						<Scene key="home" component={Home} title="Login" initial/>
+					</Scene>
+				</Router>
     );
   }
 }

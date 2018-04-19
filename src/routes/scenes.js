@@ -7,3 +7,4 @@ const scenes = Actions.create(
         <Scene key="home" component={HomeContainer}  title="home" initial/>
     </Scene>
 );
+

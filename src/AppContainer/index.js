@@ -1,9 +1,9 @@
 import React, { Component } from "react";
-import { Router } from "react-native-router-flux";
-
+import { Router, Scene } from "react-native-router-flux";
+import HomeContainer from "../routes/Home/containers/HomeContainer";
 import PropTypes from "prop-types";
 
-import scenes from "../routes/scenes";
+// import scenes from "../routes/scenes";
 
 import { Provider } from "react-redux";
 
@@ -14,10 +14,11 @@ export default class AppContainer extends Component {
 	render(){
 		return (
 
-			<Provider store={this.props.store}>
-				<Router scenes={scenes} />
-
-			</Provider>
+				<Router>
+					<Scene key="root">
+						<Scene key="home" component={HomeContainer}  title="home" initial/>
+					</Scene>
+				</Router>
 
 			);
 	}
