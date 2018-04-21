@@ -9,6 +9,7 @@ import Root from "./src/main";
 import { Provider } from "react-redux";
 import { Router, Scene, Actions } from "react-native-router-flux";
 import Home from "./src/routes/Home/components/Home";
+import MainView from "./src/routes/Home/components/MainView";
 import {
   Platform,
   StyleSheet,
@@ -29,7 +30,8 @@ export default class App extends Component {
     return (
         <Router>
 					<Scene key="root">
-						<Scene key="home" component={Home} title="Login" initial/>
+						<Scene key="home" component={Home} title="Login"/>
+            <Scene key="main" component={MainView} title="Taxi App" initial/>
 					</Scene>
 				</Router>
     );
