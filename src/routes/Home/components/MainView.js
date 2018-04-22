@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Dimensions, TextInput } from "react-native";
 import MapView from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions"
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
+import Geocoder from "react-native-geocoder";
 
 const {width, height} = Dimensions.get("window");
 
@@ -15,7 +16,7 @@ class MainView extends React.Component{
 
     constructor(props){
         super(props);
-
+        
         this.state = {
             initialPosition: {
                 latitude: 47.6062,
@@ -27,7 +28,10 @@ class MainView extends React.Component{
                 latitude: 47.6062,
                 longitude: 122.3321,
             },
-            mapReady: false,            
+            mapReady: false, 
+            destinationSelected: false,
+            destinationPlaceId: "",
+            padTop: 0     
         }
         
     }
@@ -75,6 +79,12 @@ class MainView extends React.Component{
         navigator.geolocation.clearWatch(this.watchId);
     }
 
+    componentWillMount(){
+        setTimeout(()=>this.setState({padTop: 1}),500);
+        setTimeout(()=>this.setState({padTop: 0}),500);
+        console.warn("ok");
+    }
+
     onMapLayout = () =>{
         
         console.log("wf " + this.state.mapReady);
@@ -82,24 +92,45 @@ class MainView extends React.Component{
         
     }
 
+    destinationWasSelected = (data, details = null) => {
+        this.setState({destinationSelected: true});
+        this.setState({destinationPlaceId: data.description});
+        Geocoder.fallbackToGoogle("AIzaSyDf55PAnJldTiGdc8SqV6y_0m4FHQuJ9ls");
+        const res = Geocoder.geocodeAddress("London");
+        console.warn(JSON.stringify(res));
+    }
+
     render(){
         return(
             <View style={styles.container}>
                 <MapView style={styles.map}
-                region={this.state.initialPosition} onLayout={this.onMapLayout}>
+                region={this.state.initialPosition} onLayout={this.onMapLayout} showsMyLocationButton={true} 
+                followsUserLocation={true}>
                     
                     { this.state.mapReady &&
-                    <MapView.Marker coordinate={this.state.markerPosition}>
+                    <MapView.Marker coordinate={this.state.markerPosition} >
                         <View style = {styles.radius}>
-                            <View style = {styles.marker}>
+                            <View style = {styles.currentPositionMarker}>
                             </View>
                         </View>
                     </MapView.Marker>
                     }
-                    <MapViewDirections origin = "Minsk"
-                        destination="Moscow" apikey = "AIzaSyDf55PAnJldTiGdc8SqV6y_0m4FHQuJ9ls" strokeWidth={3}
+
+                    { this.state.mapReady && this.setState.destinationSelected &&
+                    <MapView.Marker coordinate={this.state.markerPosition} >
+                        <View style = {styles.radius}>
+                            <View style = {styles.destinationPositionMarker}>
+                            </View>
+                        </View>
+                    </MapView.Marker>
+                    }
+
+                    {this.state.destinationSelected && 
+                    <MapViewDirections origin = {this.state.markerPosition}
+                        destination={this.state.destinationPlaceId} apikey = "AIzaSyDf55PAnJldTiGdc8SqV6y_0m4FHQuJ9ls" strokeWidth={3}
                         strokeColor="hotpink">
                     </MapViewDirections>
+                    }
                 </MapView>
 
                 <GooglePlacesAutocomplete
@@ -110,9 +141,7 @@ class MainView extends React.Component{
                         types: 'geocode' 
                     }}
 
-                    onPress={(data, details = null) => { // 'details' is provided when fetchDetails = true
-                    console.log(data, details);
-                  }}
+                    onPress={this.destinationWasSelected}
                     placeholder='Enter Location'
                     minLength={2}
                     autoFocus={false}
@@ -122,7 +151,8 @@ class MainView extends React.Component{
                         textInputContainer: {
                             backgroundColor: 'rgba(0,0,0,0)',
                             borderTopWidth: 0,
-                            borderBottomWidth:0
+                            borderBottomWidth:0,
+                            width: 340
                         },
                         textInput: {
                             marginLeft: 0,
@@ -135,7 +165,6 @@ class MainView extends React.Component{
                             color: '#1faadb'
                         },
                     }}
-                    currentLocation={true}
                     />
             </View>
         );
@@ -151,14 +180,15 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        bottom: 0
+        bottom: 0,
     },
     map:{
         position: 'absolute',
         left: 0,
         right: 0,
         top: 0,
-        bottom: 0
+        bottom: 0,
+        
     },
     radius: {
         height: 50,
@@ -171,7 +201,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center"
     },
-    marker: {
+    currentPositionMarker: {
         height: 20,
         width: 20,
         borderWidth: 3,
@@ -179,6 +209,15 @@ const styles = StyleSheet.create({
         borderRadius: 20/2,
         overflow: "hidden",
         backgroundColor: "#007AFF"
+    },
+    destinationPositionMarker: {
+        height: 20,
+        width: 20,
+        borderWidth: 3,
+        borderColor: "white",
+        borderRadius: 20/2,
+        overflow: "hidden",
+        backgroundColor: "#f40000"
     },
     input: {
         height: 40,
