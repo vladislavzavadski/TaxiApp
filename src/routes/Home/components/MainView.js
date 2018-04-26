@@ -1,15 +1,17 @@
 import React from "react";
-import { StyleSheet, Text, View, Dimensions, TextInput } from "react-native";
+import { StyleSheet, Text, View, Dimensions, TextInput, TouchableOpacity } from "react-native";
 import MapView from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions"
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import Geocoder from "react-native-geocoder";
 
 const {width, height} = Dimensions.get("window");
-
+const APIKEY = "AIzaSyDf55PAnJldTiGdc8SqV6y_0m4FHQuJ9ls";
+const mode = "driving"
 const ASPECT_RATIO = width / height;
 const LATITIDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITIDE_DELTA * ASPECT_RATIO;
+
 
 class MainView extends React.Component{
 
@@ -31,7 +33,17 @@ class MainView extends React.Component{
             mapReady: false, 
             destinationSelected: false,
             destinationPlaceId: "",
-            padTop: 0     
+            padTop: 0,
+            route: [],
+            distance:{
+                text: "",
+                value: 0
+            },
+            duration:{
+                text: "",
+                value: 0
+            }
+ 
         }
         
     }
@@ -93,12 +105,24 @@ class MainView extends React.Component{
     }
 
     destinationWasSelected = (data, details = null) => {
-        this.setState({destinationSelected: true});
+        const getDirectionUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${this.state.markerPosition.latitude}%20${this.state.markerPosition.longitude}&destination=place_id:${data.place_id}&key=${APIKEY}&mode=${mode}`;
+        console.warn(this.state.markerPosition);
+        fetch(getDirectionUrl).
+            then(response => response.json()).
+            then(responseJson => {
+                console.warn(JSON.stringify(responseJson));
+                res = this.decode(responseJson.routes[0].overview_polyline.points);
+                this.setState({route: res});
+                this.setState({destinationSelected: true});
+                this.setState({distance: responseJson.routes[0].legs[0].distance});
+                this.setState({duration: responseJson.routes[0].legs[0].duration});
+            });
+        
         this.setState({destinationPlaceId: data.description});
-        Geocoder.fallbackToGoogle("AIzaSyDf55PAnJldTiGdc8SqV6y_0m4FHQuJ9ls");
-        const res = Geocoder.geocodeAddress("London");
-        console.warn(JSON.stringify(res));
     }
+
+    decode(t,e){
+        for(var n,o,u=0,l=0,r=0,d= [],h=0,i=0,a=null,c=Math.pow(10,e||5);u<t.length;){a=null,h=0,i=0;do a=t.charCodeAt(u++)-63,i|=(31&a)<<h,h+=5;while(a>=32);n=1&i?~(i>>1):i>>1,h=i=0;do a=t.charCodeAt(u++)-63,i|=(31&a)<<h,h+=5;while(a>=32);o=1&i?~(i>>1):i>>1,l+=n,r+=o,d.push([l/c,r/c])}return d=d.map(function(t){return{latitude:t[0],longitude:t[1]}})}
 
     render(){
         return(
@@ -116,8 +140,8 @@ class MainView extends React.Component{
                     </MapView.Marker>
                     }
 
-                    { this.state.mapReady && this.setState.destinationSelected &&
-                    <MapView.Marker coordinate={this.state.markerPosition} >
+                    { this.state.mapReady && this.state.destinationSelected &&
+                    <MapView.Marker coordinate={this.state.route[this.state.route.length-1]} >
                         <View style = {styles.radius}>
                             <View style = {styles.destinationPositionMarker}>
                             </View>
@@ -126,17 +150,15 @@ class MainView extends React.Component{
                     }
 
                     {this.state.destinationSelected && 
-                    <MapViewDirections origin = {this.state.markerPosition}
-                        destination={this.state.destinationPlaceId} apikey = "AIzaSyDf55PAnJldTiGdc8SqV6y_0m4FHQuJ9ls" strokeWidth={3}
-                        strokeColor="hotpink">
-                    </MapViewDirections>
+                    <MapView.Polyline coordinates={this.state.route} strokeWidth={4} strokeColor="red"/>
                     }
+
                 </MapView>
 
                 <GooglePlacesAutocomplete
                     
                     query={{
-                        key: 'AIzaSyDf55PAnJldTiGdc8SqV6y_0m4FHQuJ9ls',
+                        key: APIKEY,
                         language: 'en', 
                         types: 'geocode' 
                     }}
@@ -166,6 +188,19 @@ class MainView extends React.Component{
                         },
                     }}
                     />
+
+
+                   {this.state.destinationSelected
+                    && <View>
+                            <Text>{this.state.distance.text}</Text>
+                            <Text>{this.state.duration.text}</Text>
+                            <TouchableOpacity style={styles.buttonContainer}>
+                                <Text style={styles.buttonText}>Book Taxi</Text>
+                            </TouchableOpacity>
+                        </View>    
+                    
+                    }
+
             </View>
         );
     }
@@ -181,6 +216,15 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
+    },
+    buttonContainer: {
+        backgroundColor: '#ddda1f',
+        paddingVertical: 15
+    },
+    buttonText: {
+        textAlign: 'center',
+        color: '#FFF',
+        fontWeight: '700'
     },
     map:{
         position: 'absolute',
