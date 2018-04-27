@@ -1,11 +1,13 @@
 import React from "react";
-import { StyleSheet, Text, View, Dimensions, TextInput, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, Dimensions, TextInput, TouchableOpacity, Image } from "react-native";
+import Modal from "react-native-modal";
 import MapView from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions"
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import Geocoder from "react-native-geocoder";
+import driverPhoto from "../../../images/driver.png";
 
-const {width, height} = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 const APIKEY = "AIzaSyDf55PAnJldTiGdc8SqV6y_0m4FHQuJ9ls";
 const mode = "driving"
 const ASPECT_RATIO = width / height;
@@ -13,12 +15,12 @@ const LATITIDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITIDE_DELTA * ASPECT_RATIO;
 
 
-class MainView extends React.Component{
+class MainView extends React.Component {
 
 
-    constructor(props){
+    constructor(props) {
         super(props);
-        
+
         this.state = {
             initialPosition: {
                 latitude: 47.6062,
@@ -30,28 +32,29 @@ class MainView extends React.Component{
                 latitude: 47.6062,
                 longitude: 122.3321,
             },
-            mapReady: false, 
+            mapReady: false,
             destinationSelected: false,
             destinationPlaceId: "",
             padTop: 0,
             route: [],
-            distance:{
+            distance: {
                 text: "",
                 value: 0
             },
-            duration:{
+            duration: {
                 text: "",
                 value: 0
-            }
- 
+            },
+            isVisible: false,
+
         }
-        
+
     }
 
     watchId: ?number = null;
 
-    componentDidMount(){
-        navigator.geolocation.getCurrentPosition((position)=>{
+    componentDidMount() {
+        navigator.geolocation.getCurrentPosition((position) => {
             var lat = parseFloat(position.coords.latitude);
             var lon = parseFloat(position.coords.longitude);
 
@@ -62,9 +65,9 @@ class MainView extends React.Component{
                 longitudeDelta: LONGITUDE_DELTA
             }
 
-            this.setState({initialPosition: initialRegion});
-            this.setState({markerPosition: initialRegion});
-        }, (error) => alert(JSON.stringify(error)), {enableHighAccuracy: true, timeout: 20000, maximumAge: 1000});
+            this.setState({ initialPosition: initialRegion });
+            this.setState({ markerPosition: initialRegion });
+        }, (error) => alert(JSON.stringify(error)), { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 });
 
         this.watchId = navigator.geolocation.watchPosition((position) => {
             var lat = parseFloat(position.coords.latitude);
@@ -80,28 +83,28 @@ class MainView extends React.Component{
                 longitudeDelta: LONGITUDE_DELTA
             }
 
-            this.setState({initialPosition: lastRegion});
-            this.setState({markerPosition: lastRegion});
+            this.setState({ initialPosition: lastRegion });
+            this.setState({ markerPosition: lastRegion });
         })
 
 
     }
 
-    componentWillUnmount(){
+    componentWillUnmount() {
         navigator.geolocation.clearWatch(this.watchId);
     }
 
-    componentWillMount(){
-        setTimeout(()=>this.setState({padTop: 1}),500);
-        setTimeout(()=>this.setState({padTop: 0}),500);
-        console.warn("ok");
+    componentWillMount() {
+        setTimeout(() => this.setState({ padTop: 1 }), 500);
+        setTimeout(() => this.setState({ padTop: 0 }), 500);
+        // console.warn("ok");
     }
 
-    onMapLayout = () =>{
-        
+    onMapLayout = () => {
+
         console.log("wf " + this.state.mapReady);
-        this.setState(previousState =>{return {mapReady: true}});
-        
+        this.setState(previousState => { return { mapReady: true } });
+
     }
 
     destinationWasSelected = (data, details = null) => {
@@ -112,101 +115,141 @@ class MainView extends React.Component{
             then(responseJson => {
                 console.warn(JSON.stringify(responseJson));
                 res = this.decode(responseJson.routes[0].overview_polyline.points);
-                this.setState({route: res});
-                this.setState({destinationSelected: true});
-                this.setState({distance: responseJson.routes[0].legs[0].distance});
-                this.setState({duration: responseJson.routes[0].legs[0].duration});
+                this.setState({ route: res });
+                this.setState({ destinationSelected: true });
+                this.setState({ distance: responseJson.routes[0].legs[0].distance });
+                this.setState({ duration: responseJson.routes[0].legs[0].duration });
             });
-        
-        this.setState({destinationPlaceId: data.description});
+
+        this.setState({ destinationPlaceId: data.description });
     }
 
-    decode(t,e){
-        for(var n,o,u=0,l=0,r=0,d= [],h=0,i=0,a=null,c=Math.pow(10,e||5);u<t.length;){a=null,h=0,i=0;do a=t.charCodeAt(u++)-63,i|=(31&a)<<h,h+=5;while(a>=32);n=1&i?~(i>>1):i>>1,h=i=0;do a=t.charCodeAt(u++)-63,i|=(31&a)<<h,h+=5;while(a>=32);o=1&i?~(i>>1):i>>1,l+=n,r+=o,d.push([l/c,r/c])}return d=d.map(function(t){return{latitude:t[0],longitude:t[1]}})}
+    decode(t, e) {
+        for (var n, o, u = 0, l = 0, r = 0, d = [], h = 0, i = 0, a = null, c = Math.pow(10, e || 5); u < t.length;) { a = null, h = 0, i = 0; do a = t.charCodeAt(u++) - 63, i |= (31 & a) << h, h += 5; while (a >= 32); n = 1 & i ? ~(i >> 1) : i >> 1, h = i = 0; do a = t.charCodeAt(u++) - 63, i |= (31 & a) << h, h += 5; while (a >= 32); o = 1 & i ? ~(i >> 1) : i >> 1, l += n, r += o, d.push([l / c, r / c]) } return d = d.map(function (t) { return { latitude: t[0], longitude: t[1] } })
+    }
 
-    render(){
-        return(
-            <View style={styles.container}>
-                <MapView style={styles.map}
-                region={this.state.initialPosition} onLayout={this.onMapLayout} showsMyLocationButton={true} 
-                followsUserLocation={true}>
-                    
-                    { this.state.mapReady &&
-                    <MapView.Marker coordinate={this.state.markerPosition} >
-                        <View style = {styles.radius}>
-                            <View style = {styles.currentPositionMarker}>
-                            </View>
-                        </View>
-                    </MapView.Marker>
-                    }
 
-                    { this.state.mapReady && this.state.destinationSelected &&
-                    <MapView.Marker coordinate={this.state.route[this.state.route.length-1]} >
-                        <View style = {styles.radius}>
-                            <View style = {styles.destinationPositionMarker}>
-                            </View>
-                        </View>
-                    </MapView.Marker>
-                    }
+    toggleModal = () => {
+        this.setState({
+            isVisible: !this.state.isVisible,
+        });
+    }
 
-                    {this.state.destinationSelected && 
-                    <MapView.Polyline coordinates={this.state.route} strokeWidth={4} strokeColor="red"/>
-                    }
+    renderModal = () => {
+        return (
+            <Modal
+                isVisible={this.state.isVisible}
+                onBackdropPress={() => this.setState({ isVisible: false })}
+            >
+                <View style={{ flex: 0.6, padding: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+                    <Image
+                        style={{ width: 90, height: 90, borderRadius: 45 }}
+                        source={driverPhoto}
+                    />
+                    <Text style={[styles.textStyles, { fontSize: 18 }]}>Vlad Zavadski</Text>
+                    <Text style={styles.textStyles}>Price: 56 $</Text>
+                    <Text style={styles.textStyles}>VW Polo</Text>
+                    <Text style={{ color: '#000', fontSize: 16, padding: 3, borderWidth: 1, borderRadius: 3, textAlign: 'center' }}>5599AM5</Text>
+                    <TouchableOpacity
+                        style={{ margin: 10, padding: 10, backgroundColor: '#ffff00', borderRadius: 5 }}
+                        onPress={this.toggleModal}
+                    >
+                        <Text style={{ fontSize: 20, color: '#000', textAlign: 'center' }}>Confirm</Text>
+                    </TouchableOpacity>
+                </View>
+            </Modal>
+        );
+    }
 
-                </MapView>
+    render() {
+        return (
+            <View style={{ flex: 1 }}>
+                <View style={styles.container}>
+                    <MapView style={styles.map}
+                        region={this.state.initialPosition} onLayout={this.onMapLayout} showsMyLocationButton={true}
+                        followsUserLocation={true}>
 
-                <GooglePlacesAutocomplete
-                    
-                    query={{
-                        key: APIKEY,
-                        language: 'en', 
-                        types: 'geocode' 
-                    }}
+                        {this.state.mapReady &&
+                            <MapView.Marker coordinate={this.state.markerPosition} >
+                                <View style={styles.radius}>
+                                    <View style={styles.currentPositionMarker}>
+                                    </View>
+                                </View>
+                            </MapView.Marker>
+                        }
 
-                    onPress={this.destinationWasSelected}
-                    placeholder='Enter Location'
-                    minLength={2}
-                    autoFocus={false}
-                    returnKeyType={'default'}
-                    fetchDetails={true}
-                    styles={{
-                        textInputContainer: {
-                            backgroundColor: 'rgba(0,0,0,0)',
-                            borderTopWidth: 0,
-                            borderBottomWidth:0,
-                            width: 340
-                        },
-                        textInput: {
-                            marginLeft: 0,
-                            marginRight: 0,
-                            height: 38,
-                            color: '#5d5d5d',
-                            fontSize: 16
-                        },
-                        predefinedPlacesDescription: {
-                            color: '#1faadb'
-                        },
-                    }}
+                        {this.state.mapReady && this.state.destinationSelected &&
+                            <MapView.Marker coordinate={this.state.route[this.state.route.length - 1]} >
+                                <View style={styles.radius}>
+                                    <View style={styles.destinationPositionMarker}>
+                                    </View>
+                                </View>
+                            </MapView.Marker>
+                        }
+
+                        {this.state.destinationSelected &&
+                            <MapView.Polyline coordinates={this.state.route} strokeWidth={4} strokeColor="red" />
+                        }
+
+                    </MapView>
+
+                    <GooglePlacesAutocomplete
+
+                        query={{
+                            key: APIKEY,
+                            language: 'en',
+                            types: 'geocode'
+                        }}
+
+                        onPress={this.destinationWasSelected}
+                        placeholder='Enter Location'
+                        minLength={2}
+                        autoFocus={false}
+                        returnKeyType={'default'}
+                        fetchDetails={true}
+                        styles={{
+                            textInputContainer: {
+                                backgroundColor: 'rgba(0,0,0,0)',
+                                borderTopWidth: 0,
+                                borderBottomWidth: 0,
+                                width: 340
+                            },
+                            textInput: {
+                                marginLeft: 0,
+                                marginRight: 0,
+                                height: 38,
+                                color: '#5d5d5d',
+                                fontSize: 16
+                            },
+                            predefinedPlacesDescription: {
+                                color: '#1faadb'
+                            },
+                        }}
                     />
 
 
-                   {this.state.destinationSelected
-                    && <View>
-                            <Text>{this.state.distance.text}</Text>
-                            <Text>{this.state.duration.text}</Text>
-                            <TouchableOpacity style={styles.buttonContainer}>
-                                <Text style={styles.buttonText}>Book Taxi</Text>
-                            </TouchableOpacity>
-                        </View>    
-                    
-                    }
+                    <View style={{ flex: 1, flexDirection: 'row', maxHeight: 60, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={styles.textStyles}>121 21</Text>
+                        <TouchableOpacity
+                            style={[{ flex: 0.4 }, styles.buttonContainer]}
+                            onPress={this.toggleModal}
+                        >
+                            <Text style={[{ fontSize: 20 }, styles.buttonText]}>Order Taxi</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.textStyles}>121 4545</Text>
+                    </View>
 
+                </View>
+                {this.renderModal()}
             </View>
         );
     }
 }
 
 const styles = StyleSheet.create({
+    textStyles: {
+        flex: 0.3, fontSize: 16, textAlign: 'center', color: '#000',
+    },
     container: {
         position: 'absolute',
         justifyContent: 'flex-end',
@@ -218,26 +261,27 @@ const styles = StyleSheet.create({
         bottom: 0,
     },
     buttonContainer: {
-        backgroundColor: '#ddda1f',
-        paddingVertical: 15
+        backgroundColor: '#ffff00',
+        minHeight: 60,
+        justifyContent: 'center'
     },
     buttonText: {
         textAlign: 'center',
-        color: '#FFF',
+        color: '#000',
         fontWeight: '700'
     },
-    map:{
+    map: {
         position: 'absolute',
         left: 0,
         right: 0,
         top: 0,
         bottom: 0,
-        
+
     },
     radius: {
         height: 50,
         width: 50,
-        borderRadius: 50/2,
+        borderRadius: 50 / 2,
         overflow: "hidden",
         backgroundColor: "rgba(0, 122, 255, 0.1)",
         borderWidth: 1,
@@ -250,7 +294,7 @@ const styles = StyleSheet.create({
         width: 20,
         borderWidth: 3,
         borderColor: "white",
-        borderRadius: 20/2,
+        borderRadius: 20 / 2,
         overflow: "hidden",
         backgroundColor: "#007AFF"
     },
@@ -259,7 +303,7 @@ const styles = StyleSheet.create({
         width: 20,
         borderWidth: 3,
         borderColor: "white",
-        borderRadius: 20/2,
+        borderRadius: 20 / 2,
         overflow: "hidden",
         backgroundColor: "#f40000"
     },
