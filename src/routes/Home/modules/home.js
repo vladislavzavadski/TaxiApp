@@ -3,13 +3,27 @@ import constants from "./actionConstants";
 
 //const {} = constants;
 
-const ACTION_HANDLERS = {
-
-}
-const initialState = {};
+const initialState = {
+    currentDriver: {
+        id: null,
+        name: '',
+    },
+    routeInfo: null,
+    comments: [],
+    drivers: [],
+};
 
 export function HomeReducer (state = initialState, action){
-    const handler = ACTION_HANDLERS[action.type];
-
-    return handler ? handler(state, action) : state;
+    switch (action.type) {
+        case 'ROUTE':
+            return Object.assign({}, state, {routeInfo: action.payload});
+        case 'DRIVERS':
+            return Object.assign({}, state, {drivers: action.payload});
+        case 'CURRENT_DRIVER':
+            return Object.assign({}, state, {currentDriver: action.payload});
+        case 'ADD_COMMENT':
+            return Object.assign({}, state, {comments: [...state.comments, action.payload]});
+        default:
+            return state;
+    }
 }

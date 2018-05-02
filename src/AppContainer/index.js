@@ -13,13 +13,13 @@ export default class AppContainer extends Component {
 	}
 	render(){
 		return (
-
+			<Provider store={this.props.store}>
 				<Router>
 					<Scene key="root">
 						<Scene key="home" component={HomeContainer}  title="home" initial/>
 					</Scene>
 				</Router>
-
+			</Provider>
 			);
 	}
 }

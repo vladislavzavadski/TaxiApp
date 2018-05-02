@@ -10,12 +10,15 @@ import { Provider } from "react-redux";
 import { Router, Scene, Actions } from "react-native-router-flux";
 import Home from "./src/routes/Home/components/Home";
 import MainView from "./src/routes/Home/components/MainView";
+import CommentView from "./src/routes/Home/components/Comments";
 import {
   Platform,
   StyleSheet,
   Text,
   View
 } from 'react-native';
+import createStore from "./src/store/createStore";
+import { NativeRouter, Route, Link } from 'react-router-native'
 
 const instructions = Platform.select({
   ios: 'Press Cmd+R to reload,\n' +
@@ -27,13 +30,18 @@ const instructions = Platform.select({
 // type Props = {};
 export default class App extends Component {
   render() {
+    const store = createStore();
+
     return (
-        <Router>
-					<Scene key="root">
-						<Scene key="home" component={Home} title="Login"/>
-            <Scene key="main" component={MainView} title="Taxi App" initial/>
-					</Scene>
-				</Router>
+      <Provider store={store}>
+        <NativeRouter>
+          <View style={{flex: 1}}>
+              <Route exact path="/" component={MainView} />
+              <Route path="/comments" component={CommentView} />
+            </View>
+        </NativeRouter>
+
+      </Provider>
     );
   }
 }

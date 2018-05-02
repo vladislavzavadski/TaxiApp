@@ -1,11 +1,18 @@
 import React from "react";
+import { bindActionCreators } from "redux";
+import { connect } from 'react-redux';
+import { Link } from 'react-router-native';
 import { StyleSheet, Text, View, Dimensions, TextInput, TouchableOpacity, Image } from "react-native";
 import Modal from "react-native-modal";
 import MapView from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions"
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import Geocoder from "react-native-geocoder";
+import { Actions } from "react-native-router-flux";
 import driverPhoto from "../../../images/driver.png";
+import carIcon from "../../../images/5093-200.png";
+import sorryIcon from "../../../images/sorry_emoji_shutterstock.png";
+import { setCurrentDriver, setDrivers, setRouteInfo } from "../modules/actionConstants";
 
 const { width, height } = Dimensions.get("window");
 const APIKEY = "AIzaSyDf55PAnJldTiGdc8SqV6y_0m4FHQuJ9ls";
@@ -14,9 +21,7 @@ const ASPECT_RATIO = width / height;
 const LATITIDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITIDE_DELTA * ASPECT_RATIO;
 
-
 class MainView extends React.Component {
-
 
     constructor(props) {
         super(props);
@@ -33,19 +38,29 @@ class MainView extends React.Component {
                 longitude: 122.3321,
             },
             mapReady: false,
-            destinationSelected: false,
+            destinationSelected: (this.props.routeInfo && this.props.routeInfo.destinationSelected) ||false,
             destinationPlaceId: "",
             padTop: 0,
-            route: [],
-            distance: {
+            route: (this.props.routeInfo && this.props.routeInfo.route) || [],
+            distance: (this.props.routeInfo && this.props.routeInfo.distance) || {
                 text: "",
                 value: 0
             },
-            duration: {
+            duration: (this.props.routeInfo && this.props.routeInfo.duration) || {
                 text: "",
                 value: 0
             },
             isVisible: false,
+            drivers: [],
+            nearestDriver: {
+                car: {},
+                location: {}
+            },
+            routeNotFound:{
+                isVisible: false,
+                destination: "Vlad",
+            },
+            dest: ""
 
         }
 
@@ -73,9 +88,6 @@ class MainView extends React.Component {
             var lat = parseFloat(position.coords.latitude);
             var lon = parseFloat(position.coords.longitude);
 
-            console.log(" " + lat);
-            console.log(" " + lon);
-
             var lastRegion = {
                 latitude: lat,
                 longitude: lon,
@@ -101,26 +113,45 @@ class MainView extends React.Component {
     }
 
     onMapLayout = () => {
+        fetch("http://10.0.2.2:8080/drivers").then(response => response.json()).then(response => {
+            this.setState({drivers: response}, () => {
+                this.props.setDrivers(this.state.drivers);
+            });
+        });
 
-        console.log("wf " + this.state.mapReady);
         this.setState(previousState => { return { mapReady: true } });
 
     }
 
     destinationWasSelected = (data, details = null) => {
         const getDirectionUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${this.state.markerPosition.latitude}%20${this.state.markerPosition.longitude}&destination=place_id:${data.place_id}&key=${APIKEY}&mode=${mode}`;
-        console.warn(this.state.markerPosition);
+        console.warn(JSON.stringify(data));
         fetch(getDirectionUrl).
             then(response => response.json()).
             then(responseJson => {
                 console.warn(JSON.stringify(responseJson));
-                res = this.decode(responseJson.routes[0].overview_polyline.points);
-                this.setState({ route: res });
-                this.setState({ destinationSelected: true });
-                this.setState({ distance: responseJson.routes[0].legs[0].distance });
-                this.setState({ duration: responseJson.routes[0].legs[0].duration });
-            });
+                if(responseJson.status == "OK"){
+                    res = this.decode(responseJson.routes[0].overview_polyline.points);
 
+                    this.setState({
+                        route: res,
+                        destinationSelected: true,
+                        distance: responseJson.routes[0].legs[0].distance,
+                        duration: responseJson.routes[0].legs[0].duration,
+                    }, () => {
+                        this.props.setRouteInfo({
+                            route: this.state.route,
+                            destinationSelected: this.state.destinationSelected,
+                            distance: this.state.distance,
+                            duration: this.state.duration,
+                        });
+                    });
+                }
+                else{
+                    this.setState({dest: data.description});
+                    this.setState({routeNotFound: {isVisible: true }});
+                }
+            });
         this.setState({ destinationPlaceId: data.description });
     }
 
@@ -130,6 +161,14 @@ class MainView extends React.Component {
 
 
     toggleModal = () => {
+
+        fetch(`http://10.0.2.2:8080/drivers/nearest?latitude=${this.state.markerPosition.latitude}&longitude=${this.state.markerPosition.longitude}`).
+            then(jsonResponse => jsonResponse.json()).then(response => {
+                this.setState({nearestDriver: response}, () => {
+                    this.props.setCurrentDriver(this.state.nearestDriver);
+                });
+            });
+
         this.setState({
             isVisible: !this.state.isVisible,
         });
@@ -142,19 +181,46 @@ class MainView extends React.Component {
                 onBackdropPress={() => this.setState({ isVisible: false })}
             >
                 <View style={{ flex: 0.6, padding: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-                    <Image
-                        style={{ width: 90, height: 90, borderRadius: 45 }}
-                        source={driverPhoto}
-                    />
-                    <Text style={[styles.textStyles, { fontSize: 18 }]}>Vlad Zavadski</Text>
-                    <Text style={styles.textStyles}>Price: 56 $</Text>
-                    <Text style={styles.textStyles}>VW Polo</Text>
-                    <Text style={{ color: '#000', fontSize: 16, padding: 3, borderWidth: 1, borderRadius: 3, textAlign: 'center' }}>5599AM5</Text>
+                    <Link
+                        to={`/comments`}
+                    >
+                        <Image
+                            style={{ width: 90, height: 90, borderRadius: 45 }}
+                            source={driverPhoto}
+                        />
+                    </Link>
+                    <Text style={[styles.textStyles, { fontSize: 18 }]}>{this.state.nearestDriver.name}</Text>
+                    <Text style={styles.textStyles}>{this.state.nearestDriver.car.carModel}</Text>
+                    <Text style={{ color: '#000', fontSize: 16, padding: 3, borderWidth: 1, borderRadius: 3, textAlign: 'center' }}>{this.state.nearestDriver.car.carNumber}</Text>
                     <TouchableOpacity
                         style={{ margin: 10, padding: 10, backgroundColor: '#ffff00', borderRadius: 5 }}
-                        onPress={this.toggleModal}
+                        onPress={() => this.setState({ isVisible: false })}
                     >
                         <Text style={{ fontSize: 20, color: '#000', textAlign: 'center' }}>Confirm</Text>
+                    </TouchableOpacity>
+                </View>
+            </Modal>
+        );
+    }
+
+    routeNotFoundModal = () => {
+        return (
+            <Modal
+                isVisible={this.state.routeNotFound.isVisible}
+                onBackdropPress={() => this.setState({ routeNotFound: {isVisible: false }})}
+            >
+                <View style={{ flex: 0.6, padding: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+                <Image
+                        style={{ width: 200, height: 200, borderRadius: 45 }}
+                        source={sorryIcon}
+                    />
+                    
+                    <Text>Sorry, but we can not found route to {this.state.dest} from your current place :(</Text>
+                    <TouchableOpacity
+                        style={{ margin: 10, padding: 10, backgroundColor: '#ffff00', borderRadius: 5 }}
+                        onPress={() => this.setState({ routeNotFound: {isVisible: false } })}
+                    >
+                        <Text style={{ fontSize: 20, color: '#000', textAlign: 'center' }}>Cancel</Text>
                     </TouchableOpacity>
                 </View>
             </Modal>
@@ -170,7 +236,7 @@ class MainView extends React.Component {
                         followsUserLocation={true}>
 
                         {this.state.mapReady &&
-                            <MapView.Marker coordinate={this.state.markerPosition} >
+                            <MapView.Marker coordinate={this.state.markerPosition}>
                                 <View style={styles.radius}>
                                     <View style={styles.currentPositionMarker}>
                                     </View>
@@ -186,6 +252,16 @@ class MainView extends React.Component {
                                 </View>
                             </MapView.Marker>
                         }
+                        
+                        {this.state.drivers.map(driver => {
+                            return (
+                                <MapView.Marker key={driver.id} coordinate={driver.location} image={carIcon}         
+                                style={{
+                                    width: 20,
+                                    height: 20
+                                  }}/>
+                            );
+                        })}
 
                         {this.state.destinationSelected &&
                             <MapView.Polyline coordinates={this.state.route} strokeWidth={4} strokeColor="red" />
@@ -227,20 +303,22 @@ class MainView extends React.Component {
                         }}
                     />
 
-
+                    {this.state.destinationSelected &&
                     <View style={{ flex: 1, flexDirection: 'row', maxHeight: 60, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={styles.textStyles}>121 21</Text>
+                        <Text style={styles.textStyles}>{this.state.distance.text}</Text>
                         <TouchableOpacity
                             style={[{ flex: 0.4 }, styles.buttonContainer]}
                             onPress={this.toggleModal}
                         >
                             <Text style={[{ fontSize: 20 }, styles.buttonText]}>Order Taxi</Text>
                         </TouchableOpacity>
-                        <Text style={styles.textStyles}>121 4545</Text>
+                        <Text style={styles.textStyles}>{this.state.duration.text}</Text>
                     </View>
+                    }
 
                 </View>
                 {this.renderModal()}
+                {this.routeNotFoundModal()}
             </View>
         );
     }
@@ -318,4 +396,18 @@ const styles = StyleSheet.create({
     }
 });
 
-export default MainView;
+const mapStateToProps = (state) => {
+    return {
+        routeInfo: state.home.routeInfo,
+    };
+};
+
+const mapDispatchToProps = dispatch => {
+    return {
+        setDrivers: bindActionCreators(setDrivers, dispatch),
+        setCurrentDriver: bindActionCreators(setCurrentDriver, dispatch),
+        setRouteInfo: bindActionCreators(setRouteInfo, dispatch),
+    };
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(MainView);
